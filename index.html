@@ -1,0 +1,1421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Axiom Sheets – Spreadsheet</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #ffffff;
+            --surface: #f8f9fa;
+            --border: #dadce0;
+            --text: #202124;
+            --text-secondary: #5f6368;
+            --primary: #1a73e8;
+            --header-bg: #f1f3f4;
+            --cell-bg: #ffffff;
+            --cell-hover: #f8f9fa;
+            --selection-bg: #e8f0fe;
+            --selection-border: #1a73e8;
+            --shadow: 0 1px 3px rgba(0,0,0,0.1);
+            --radius: 4px;
+            --transition: 0.2s cubic-bezier(0.4,0,0.2,1);
+        }
+        body.dark {
+            --bg: #202124;
+            --surface: #303134;
+            --border: #5f6368;
+            --text: #e8eaed;
+            --text-secondary: #9aa0a6;
+            --primary: #8ab4f8;
+            --header-bg: #303134;
+            --cell-bg: #202124;
+            --cell-hover: #303134;
+            --selection-bg: #3c4043;
+            --selection-border: #8ab4f8;
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            overflow: hidden;
+            height: 100vh;
+            transition: background var(--transition), color var(--transition);
+        }
+        #app {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        /* Toolbar */
+        #toolbar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+            flex-wrap: wrap;
+        }
+        #toolbar button {
+            background: none;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 6px 12px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            transition: background var(--transition);
+        }
+        #toolbar button:hover {
+            background: var(--cell-hover);
+        }
+        #themeToggle {
+            margin-left: auto;
+            font-size: 1.2rem;
+            border: none;
+            background: none;
+            cursor: pointer;
+        }
+        /* Formula bar */
+        #formula-bar {
+            display: flex;
+            align-items: center;
+            padding: 4px 16px;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+            gap: 8px;
+        }
+        #cell-ref {
+            width: 80px;
+            padding: 4px 8px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            background: var(--cell-bg);
+            color: var(--text);
+            font-size: 0.9rem;
+        }
+        #formula-input {
+            flex: 1;
+            padding: 6px 8px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            background: var(--cell-bg);
+            color: var(--text);
+            font-size: 0.95rem;
+        }
+        /* Grid container */
+        #grid-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            background: var(--bg);
+        }
+        #corner {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 50px;
+            height: 30px;
+            background: var(--header-bg);
+            border-right: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+            z-index: 20;
+        }
+        #column-headers-container {
+            position: absolute;
+            top: 0;
+            left: 50px;
+            right: 0;
+            height: 30px;
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border);
+            overflow: hidden;
+            z-index: 10;
+        }
+        #column-headers {
+            display: flex;
+            height: 30px;
+            will-change: transform;
+        }
+        .col-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-right: 1px solid var(--border);
+            background: var(--header-bg);
+            color: var(--text-secondary);
+            font-weight: 500;
+            font-size: 0.85rem;
+            cursor: default;
+            user-select: none;
+            position: relative;
+            flex-shrink: 0;
+        }
+        .col-header .resize-handle {
+            position: absolute;
+            right: 0;
+            top: 0;
+            width: 5px;
+            height: 100%;
+            cursor: col-resize;
+            background: transparent;
+        }
+        .col-header .resize-handle:hover {
+            background: var(--primary);
+            opacity: 0.5;
+        }
+        .col-header .filter-btn {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--text-secondary);
+            font-size: 0.7rem;
+            opacity: 0;
+            transition: opacity var(--transition);
+        }
+        .col-header:hover .filter-btn {
+            opacity: 1;
+        }
+        #row-headers-container {
+            position: absolute;
+            top: 30px;
+            left: 0;
+            bottom: 0;
+            width: 50px;
+            background: var(--header-bg);
+            border-right: 1px solid var(--border);
+            overflow: hidden;
+            z-index: 10;
+        }
+        #row-headers {
+            position: relative;
+            width: 50px;
+            will-change: transform;
+        }
+        .row-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 24px;
+            border-bottom: 1px solid var(--border);
+            background: var(--header-bg);
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            user-select: none;
+            position: absolute;
+            left: 0;
+            width: 50px;
+        }
+        #grid-scroll {
+            position: absolute;
+            top: 30px;
+            left: 50px;
+            right: 0;
+            bottom: 0;
+            overflow: auto;
+            background: var(--bg);
+        }
+        #grid-spacer {
+            position: relative;
+            will-change: transform;
+        }
+        .cell {
+            position: absolute;
+            border-right: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+            background: var(--cell-bg);
+            padding: 0 4px;
+            line-height: 24px;
+            font-size: 0.9rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            cursor: cell;
+            user-select: none;
+        }
+        .cell.selected {
+            background: var(--selection-bg);
+            outline: 2px solid var(--selection-border);
+            outline-offset: -2px;
+            z-index: 5;
+        }
+        .cell.active {
+            outline: 2px solid var(--primary);
+            z-index: 6;
+        }
+        .cell.editing {
+            padding: 0;
+            z-index: 20;
+        }
+        .cell input {
+            width: 100%;
+            height: 100%;
+            border: 2px solid var(--primary);
+            padding: 0 4px;
+            font-size: 0.9rem;
+            background: var(--cell-bg);
+            color: var(--text);
+            outline: none;
+            font-family: inherit;
+        }
+        .filter-dropdown {
+            position: absolute;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            z-index: 100;
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 4px;
+        }
+        .filter-item {
+            padding: 4px 8px;
+            cursor: pointer;
+            border-radius: var(--radius);
+            font-size: 0.85rem;
+        }
+        .filter-item:hover {
+            background: var(--cell-hover);
+        }
+        .filter-item.selected {
+            background: var(--selection-bg);
+            color: var(--primary);
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div id="toolbar">
+            <button id="sortAsc" title="Sort A-Z">🔠 Sort A-Z</button>
+            <button id="sortDesc" title="Sort Z-A">🔡 Sort Z-A</button>
+            <button id="toggleFilter" title="Toggle filter">🔍 Filter</button>
+            <button id="clearAll" title="Clear all data">🗑️ Clear All</button>
+            <button id="themeToggle" title="Toggle theme">🌙</button>
+        </div>
+        <div id="formula-bar">
+            <input id="cell-ref" value="A1" readonly>
+            <input id="formula-input" placeholder="Enter value or formula" spellcheck="false">
+        </div>
+        <div id="grid-container">
+            <div id="corner"></div>
+            <div id="column-headers-container">
+                <div id="column-headers"></div>
+            </div>
+            <div id="row-headers-container">
+                <div id="row-headers"></div>
+            </div>
+            <div id="grid-scroll">
+                <div id="grid-spacer"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    (function() {
+        'use strict';
+
+        // ================= CONSTANTS =================
+        const DEFAULT_COL_WIDTH = 100;
+        const ROW_HEIGHT = 24;
+        const HEADER_HEIGHT = 30;
+        const HEADER_WIDTH = 50;
+        const TOTAL_COLUMNS = 50; // A to AX
+        const TOTAL_ROWS = 10000; // Large enough for "infinite"
+        const STORAGE_KEY = 'axiom_sheets_data';
+
+        // ================= UTILITIES =================
+        function colLetter(n) {
+            let s = '';
+            n++;
+            while (n > 0) {
+                const rem = (n - 1) % 26;
+                s = String.fromCharCode(65 + rem) + s;
+                n = Math.floor((n - 1) / 26);
+            }
+            return s;
+        }
+
+        function cellId(row, col) {
+            return colLetter(col) + (row + 1);
+        }
+
+        function parseCellId(id) {
+            const match = id.match(/([A-Z]+)(\d+)/);
+            if (!match) return null;
+            let col = 0;
+            const letters = match[1];
+            for (let i = 0; i < letters.length; i++) {
+                col = col * 26 + (letters.charCodeAt(i) - 64);
+            }
+            return { row: parseInt(match[2]) - 1, col: col - 1 };
+        }
+
+        function debounce(fn, delay) {
+            let timer;
+            return function(...args) {
+                clearTimeout(timer);
+                timer = setTimeout(() => fn.apply(this, args), delay);
+            };
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        function isNumeric(val) {
+            return !isNaN(parseFloat(val)) && isFinite(val);
+        }
+
+        // ================= STATE =================
+        const state = {
+            data: {}, // cellId -> { formula, value, displayValue }
+            colWidths: new Array(TOTAL_COLUMNS).fill(DEFAULT_COL_WIDTH),
+            dependencies: {}, // cellId -> Set of dependents
+            dependents: {}, // cellId -> Set of cells it depends on
+            selection: null, // { startRow, startCol, endRow, endCol }
+            activeCell: { row: 0, col: 0 },
+            editing: false,
+            clipboard: null,
+            filterMode: false,
+            filters: {}, // colIndex -> Set of values to show (if empty, show all)
+            filteredValues: {}, // colIndex -> array of unique values
+            scrollTop: 0,
+            scrollLeft: 0,
+            visibleRows: [],
+            visibleCols: [],
+            isDragging: false,
+            dragStart: null,
+            resizeCol: null,
+            resizeStartX: 0,
+            resizeStartWidth: 0,
+            formulaBarFocused: false,
+        };
+
+        // ================= DOM =================
+        const $ = (sel) => document.querySelector(sel);
+        const toolbar = $('#toolbar');
+        const sortAscBtn = $('#sortAsc');
+        const sortDescBtn = $('#sortDesc');
+        const toggleFilterBtn = $('#toggleFilter');
+        const clearAllBtn = $('#clearAll');
+        const themeToggle = $('#themeToggle');
+        const cellRef = $('#cell-ref');
+        const formulaInput = $('#formula-input');
+        const gridContainer = $('#grid-container');
+        const corner = $('#corner');
+        const columnHeadersContainer = $('#column-headers-container');
+        const columnHeaders = $('#column-headers');
+        const rowHeadersContainer = $('#row-headers-container');
+        const rowHeaders = $('#row-headers');
+        const gridScroll = $('#grid-scroll');
+        const gridSpacer = $('#grid-spacer');
+        const body = document.body;
+
+        // ================= THEME =================
+        function setTheme(theme) {
+            if (theme === 'dark') {
+                body.classList.add('dark');
+                themeToggle.textContent = '☀️';
+                localStorage.setItem('axiom_theme', 'dark');
+            } else {
+                body.classList.remove('dark');
+                themeToggle.textContent = '🌙';
+                localStorage.setItem('axiom_theme', 'light');
+            }
+        }
+        themeToggle.addEventListener('click', () => {
+            body.classList.contains('dark') ? setTheme('light') : setTheme('dark');
+        });
+
+        // ================= FORMULA PARSER =================
+        // Lexer
+        function tokenize(formula) {
+            const tokens = [];
+            let i = 0;
+            while (i < formula.length) {
+                const ch = formula[i];
+                if (/\s/.test(ch)) { i++; continue; }
+                if (/[0-9]/.test(ch) || (ch === '.' && /[0-9]/.test(formula[i+1]))) {
+                    let num = '';
+                    while (i < formula.length && /[0-9.]/.test(formula[i])) num += formula[i++];
+                    tokens.push({ type: 'NUMBER', value: parseFloat(num) });
+                    continue;
+                }
+                if (ch === '"') {
+                    let str = '';
+                    i++;
+                    while (i < formula.length && formula[i] !== '"') {
+                        str += formula[i++];
+                    }
+                    i++; // skip closing quote
+                    tokens.push({ type: 'STRING', value: str });
+                    continue;
+                }
+                if (/[A-Za-z_]/.test(ch)) {
+                    let ident = '';
+                    while (i < formula.length && /[A-Za-z0-9_.]/.test(formula[i])) ident += formula[i++];
+                    if (ident.toUpperCase() === 'TRUE') tokens.push({ type: 'BOOL', value: true });
+                    else if (ident.toUpperCase() === 'FALSE') tokens.push({ type: 'BOOL', value: false });
+                    else if (/^[A-Z]+$/.test(ident) && /[0-9]/.test(formula[i] || '')) {
+                        // cell reference possibly with column letters and row number, or function
+                        // handle cell ref like A1
+                        let colPart = ident;
+                        let rowPart = '';
+                        while (i < formula.length && /[0-9]/.test(formula[i])) rowPart += formula[i++];
+                        tokens.push({ type: 'CELL', value: colPart + rowPart });
+                    } else {
+                        tokens.push({ type: 'IDENT', value: ident.toUpperCase() });
+                    }
+                    continue;
+                }
+                if ('+-*/^&()=<>:,'.includes(ch)) {
+                    if (ch === '=' && formula[i+1] === '=') { tokens.push({ type: 'OP', value: '==' }); i += 2; continue; }
+                    if (ch === '<' && formula[i+1] === '=') { tokens.push({ type: 'OP', value: '<=' }); i += 2; continue; }
+                    if (ch === '>' && formula[i+1] === '=') { tokens.push({ type: 'OP', value: '>=' }); i += 2; continue; }
+                    if (ch === '<' && formula[i+1] === '>') { tokens.push({ type: 'OP', value: '<>' }); i += 2; continue; }
+                    if (ch === ':' ) { tokens.push({ type: 'OP', value: ':' }); i++; continue; }
+                    tokens.push({ type: 'OP', value: ch });
+                    i++;
+                    continue;
+                }
+                // ignore unknown
+                i++;
+            }
+            return tokens;
+        }
+
+        // Parser (recursive descent)
+        class Parser {
+            constructor(tokens) {
+                this.tokens = tokens;
+                this.pos = 0;
+            }
+            peek() { return this.tokens[this.pos]; }
+            next() { return this.tokens[this.pos++]; }
+            expect(type, value) {
+                const tok = this.peek();
+                if (!tok || (type && tok.type !== type) || (value && tok.value !== value)) {
+                    throw new Error('Unexpected token: ' + (tok ? tok.value : 'end'));
+                }
+                return this.next();
+            }
+            parseExpression() {
+                return this.parseComparison();
+            }
+            parseComparison() {
+                let left = this.parseAdditive();
+                while (this.peek() && this.peek().type === 'OP' && ['=', '==', '<>', '<', '<=', '>', '>='].includes(this.peek().value)) {
+                    const op = this.next().value;
+                    const right = this.parseAdditive();
+                    left = { type: 'Comparison', op, left, right };
+                }
+                return left;
+            }
+            parseAdditive() {
+                let left = this.parseMultiplicative();
+                while (this.peek() && this.peek().type === 'OP' && ['+', '-'].includes(this.peek().value)) {
+                    const op = this.next().value;
+                    const right = this.parseMultiplicative();
+                    left = { type: 'BinaryOp', op, left, right };
+                }
+                return left;
+            }
+            parseMultiplicative() {
+                let left = this.parsePower();
+                while (this.peek() && this.peek().type === 'OP' && ['*', '/'].includes(this.peek().value)) {
+                    const op = this.next().value;
+                    const right = this.parsePower();
+                    left = { type: 'BinaryOp', op, left, right };
+                }
+                return left;
+            }
+            parsePower() {
+                let left = this.parseUnary();
+                if (this.peek() && this.peek().type === 'OP' && this.peek().value === '^') {
+                    this.next();
+                    const right = this.parsePower();
+                    left = { type: 'BinaryOp', op: '^', left, right };
+                }
+                return left;
+            }
+            parseUnary() {
+                if (this.peek() && this.peek().type === 'OP' && this.peek().value === '-') {
+                    this.next();
+                    const expr = this.parseUnary();
+                    return { type: 'UnaryOp', op: '-', expr };
+                }
+                return this.parsePostfix();
+            }
+            parsePostfix() {
+                let expr = this.parsePrimary();
+                while (this.peek() && this.peek().type === 'OP' && this.peek().value === ':') {
+                    this.next(); // consume ':'
+                    const right = this.parsePrimary();
+                    if (expr.type !== 'CellRef' || right.type !== 'CellRef') {
+                        throw new Error('Range requires cell references');
+                    }
+                    expr = { type: 'Range', start: expr, end: right };
+                }
+                return expr;
+            }
+            parsePrimary() {
+                const tok = this.peek();
+                if (!tok) throw new Error('Unexpected end');
+                if (tok.type === 'NUMBER' || tok.type === 'STRING' || tok.type === 'BOOL') {
+                    this.next();
+                    return { type: 'Literal', value: tok.value };
+                }
+                if (tok.type === 'CELL') {
+                    this.next();
+                    return { type: 'CellRef', ref: tok.value };
+                }
+                if (tok.type === 'IDENT') {
+                    this.next();
+                    if (this.peek() && this.peek().type === 'OP' && this.peek().value === '(') {
+                        this.next(); // '('
+                        const args = [];
+                        if (this.peek() && !(this.peek().type === 'OP' && this.peek().value === ')')) {
+                            args.push(this.parseExpression());
+                            while (this.peek() && this.peek().type === 'OP' && this.peek().value === ',') {
+                                this.next();
+                                args.push(this.parseExpression());
+                            }
+                        }
+                        this.expect('OP', ')');
+                        return { type: 'Function', name: tok.value, args };
+                    } else {
+                        // maybe named constant like TRUE/FALSE already handled
+                        throw new Error('Unknown identifier: ' + tok.value);
+                    }
+                }
+                if (tok.type === 'OP' && tok.value === '(') {
+                    this.next();
+                    const expr = this.parseExpression();
+                    this.expect('OP', ')');
+                    return expr;
+                }
+                throw new Error('Unexpected token: ' + tok.value);
+            }
+        }
+
+        function parseFormula(formula) {
+            const tokens = tokenize(formula.slice(1)); // remove leading '='
+            const parser = new Parser(tokens);
+            return parser.parseExpression();
+        }
+
+        // ================= EVALUATION =================
+        function getCellValue(ref) {
+            const cell = state.data[ref];
+            if (!cell) return 0;
+            if (cell.displayValue !== undefined && isNumeric(cell.displayValue)) return parseFloat(cell.displayValue);
+            if (typeof cell.value === 'number') return cell.value;
+            return 0; // treat non-numeric as 0
+        }
+
+        function evaluateAst(node, context) {
+            switch (node.type) {
+                case 'Literal':
+                    return node.value;
+                case 'CellRef':
+                    return getCellValue(node.ref);
+                case 'Range': {
+                    const start = parseCellId(node.start.ref);
+                    const end = parseCellId(node.end.ref);
+                    const values = [];
+                    for (let r = start.row; r <= end.row; r++) {
+                        for (let c = start.col; c <= end.col; c++) {
+                            values.push(getCellValue(cellId(r, c)));
+                        }
+                    }
+                    return values; // functions will handle arrays
+                }
+                case 'BinaryOp': {
+                    const left = evaluateAst(node.left, context);
+                    const right = evaluateAst(node.right, context);
+                    switch (node.op) {
+                        case '+': return left + right;
+                        case '-': return left - right;
+                        case '*': return left * right;
+                        case '/': return left / right;
+                        case '^': return Math.pow(left, right);
+                        case '&': return String(left) + String(right);
+                        default: throw new Error('Unknown operator: ' + node.op);
+                    }
+                }
+                case 'UnaryOp':
+                    return -evaluateAst(node.expr, context);
+                case 'Comparison': {
+                    const left = evaluateAst(node.left, context);
+                    const right = evaluateAst(node.right, context);
+                    switch (node.op) {
+                        case '=': case '==': return left == right;
+                        case '<>': return left != right;
+                        case '<': return left < right;
+                        case '<=': return left <= right;
+                        case '>': return left > right;
+                        case '>=': return left >= right;
+                        default: throw new Error('Unknown comparison');
+                    }
+                }
+                case 'Function': {
+                    const args = node.args.map(arg => evaluateAst(arg, context));
+                    return evaluateFunction(node.name, args, context);
+                }
+                default:
+                    throw new Error('Unknown AST node');
+            }
+        }
+
+        function evaluateFunction(name, args, context) {
+            const flatArgs = args.flat ? args.flat(Infinity) : args;
+            switch (name) {
+                case 'SUM': return flatArgs.reduce((a,b) => a + (isNumeric(b)? parseFloat(b):0), 0);
+                case 'AVERAGE': {
+                    const nums = flatArgs.filter(v => isNumeric(v)).map(Number);
+                    return nums.length ? nums.reduce((a,b)=>a+b,0)/nums.length : 0;
+                }
+                case 'MIN': return Math.min(...flatArgs.filter(v => isNumeric(v)).map(Number));
+                case 'MAX': return Math.max(...flatArgs.filter(v => isNumeric(v)).map(Number));
+                case 'COUNT': return flatArgs.filter(v => isNumeric(v)).length;
+                case 'IF': {
+                    if (args.length < 3) throw new Error('IF requires 3 arguments');
+                    return args[0] ? args[1] : args[2];
+                }
+                case 'AND': return args.every(v => !!v);
+                case 'OR': return args.some(v => !!v);
+                case 'NOT': return !args[0];
+                case 'CONCAT': return args.map(String).join('');
+                case 'ROUND': return Math.round(args[0] * Math.pow(10, args[1]||0)) / Math.pow(10, args[1]||0);
+                case 'SQRT': return Math.sqrt(args[0]);
+                case 'ABS': return Math.abs(args[0]);
+                case 'TODAY': return new Date().toLocaleDateString();
+                case 'UPPER': return String(args[0]).toUpperCase();
+                case 'LOWER': return String(args[0]).toLowerCase();
+                default: throw new Error('Unknown function: ' + name);
+            }
+        }
+
+        // ================= DEPENDENCY GRAPH =================
+        function updateDependencies(cellId, formula) {
+            // Remove old dependencies
+            if (state.dependents[cellId]) {
+                for (const dep of state.dependents[cellId]) {
+                    state.dependencies[dep]?.delete(cellId);
+                }
+                delete state.dependents[cellId];
+            }
+            // Parse formula and extract dependencies
+            try {
+                const ast = parseFormula(formula);
+                const deps = new Set();
+                collectDependencies(ast, deps);
+                state.dependents[cellId] = deps;
+                for (const dep of deps) {
+                    if (!state.dependencies[dep]) state.dependencies[dep] = new Set();
+                    state.dependencies[dep].add(cellId);
+                }
+            } catch (e) {
+                // formula error, no deps
+                console.warn('Dependency parse error:', e);
+            }
+        }
+
+        function collectDependencies(node, deps) {
+            if (!node) return;
+            if (node.type === 'CellRef') {
+                deps.add(node.ref);
+            } else if (node.type === 'Range') {
+                const start = parseCellId(node.start.ref);
+                const end = parseCellId(node.end.ref);
+                for (let r = start.row; r <= end.row; r++) {
+                    for (let c = start.col; c <= end.col; c++) {
+                        deps.add(cellId(r, c));
+                    }
+                }
+            } else if (node.type === 'Function') {
+                node.args.forEach(arg => collectDependencies(arg, deps));
+            } else if (node.type === 'BinaryOp') {
+                collectDependencies(node.left, deps);
+                collectDependencies(node.right, deps);
+            } else if (node.type === 'Comparison') {
+                collectDependencies(node.left, deps);
+                collectDependencies(node.right, deps);
+            } else if (node.type === 'UnaryOp') {
+                collectDependencies(node.expr, deps);
+            }
+        }
+
+        function recalcCell(cellId) {
+            const cell = state.data[cellId];
+            if (!cell || !cell.formula) return;
+            try {
+                const ast = parseFormula(cell.formula);
+                const value = evaluateAst(ast, {});
+                cell.value = value;
+                cell.displayValue = (typeof value === 'number') ? value.toString() : String(value);
+            } catch (e) {
+                cell.value = '#ERROR';
+                cell.displayValue = '#ERROR';
+                console.warn('Eval error:', e);
+            }
+        }
+
+        function recalcDependents(seedCellId) {
+            const queue = [seedCellId];
+            const visited = new Set();
+            while (queue.length) {
+                const current = queue.shift();
+                if (visited.has(current)) continue;
+                visited.add(current);
+                recalcCell(current);
+                const deps = state.dependencies[current];
+                if (deps) {
+                    for (const d of deps) {
+                        if (!visited.has(d)) queue.push(d);
+                    }
+                }
+            }
+        }
+
+        // ================= DATA OPERATIONS =================
+        function setCellValue(row, col, input) {
+            const id = cellId(row, col);
+            if (input.startsWith('=')) {
+                const formula = input;
+                const cell = { formula, value: '', displayValue: '' };
+                state.data[id] = cell;
+                updateDependencies(id, formula);
+                recalcCell(id);
+                recalcDependents(id);
+            } else {
+                delete state.dependents[id];
+                // Remove as dependent from others
+                for (const depSet of Object.values(state.dependencies)) {
+                    depSet.delete(id);
+                }
+                if (state.data[id]) {
+                    delete state.dependencies[id];
+                }
+                const cell = { formula: '', value: input, displayValue: input };
+                state.data[id] = cell;
+                recalcDependents(id);
+            }
+            updateCellDisplay(row, col);
+            saveStateDebounced();
+        }
+
+        function updateCellDisplay(row, col) {
+            const id = cellId(row, col);
+            const cellEl = document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+            if (cellEl) {
+                const cell = state.data[id];
+                if (cell) {
+                    cellEl.textContent = cell.displayValue || '';
+                } else {
+                    cellEl.textContent = '';
+                }
+            }
+        }
+
+        // ================= GRID RENDERING (Virtualized) =================
+        function calculateVisibleRange() {
+            const scrollTop = gridScroll.scrollTop;
+            const scrollLeft = gridScroll.scrollLeft;
+            state.scrollTop = scrollTop;
+            state.scrollLeft = scrollLeft;
+
+            const viewportWidth = gridScroll.clientWidth;
+            const viewportHeight = gridScroll.clientHeight;
+
+            // Visible columns
+            let startCol = 0, endCol = 0;
+            let x = 0;
+            for (let i = 0; i < TOTAL_COLUMNS; i++) {
+                if (x + state.colWidths[i] > scrollLeft) { startCol = i; break; }
+                x += state.colWidths[i];
+            }
+            x = 0;
+            for (let i = 0; i < TOTAL_COLUMNS; i++) {
+                x += state.colWidths[i];
+                if (x >= scrollLeft + viewportWidth) { endCol = i; break; }
+                if (i === TOTAL_COLUMNS - 1) endCol = i;
+            }
+            state.visibleCols = { start: startCol, end: Math.min(endCol, TOTAL_COLUMNS - 1) };
+
+            // Visible rows
+            const startRow = Math.floor(scrollTop / ROW_HEIGHT);
+            const endRow = Math.min(Math.floor((scrollTop + viewportHeight) / ROW_HEIGHT), TOTAL_ROWS - 1);
+            state.visibleRows = { start: startRow, end: endRow };
+        }
+
+        function renderColumnHeaders() {
+            columnHeaders.innerHTML = '';
+            let offsetX = 0;
+            for (let c = 0; c < TOTAL_COLUMNS; c++) {
+                const width = state.colWidths[c];
+                const header = document.createElement('div');
+                header.className = 'col-header';
+                header.style.width = width + 'px';
+                header.style.left = offsetX + 'px';
+                header.dataset.col = c;
+                header.innerHTML = `
+                    <span>${colLetter(c)}</span>
+                    <span class="resize-handle" data-col="${c}"></span>
+                    ${state.filterMode ? `<button class="filter-btn" data-col="${c}">▼</button>` : ''}
+                `;
+                columnHeaders.appendChild(header);
+                offsetX += width;
+            }
+            // update filter buttons if filter mode
+        }
+
+        function renderRowHeaders() {
+            rowHeaders.innerHTML = '';
+            const { start, end } = state.visibleRows;
+            for (let r = start; r <= end; r++) {
+                const header = document.createElement('div');
+                header.className = 'row-header';
+                header.style.top = (r * ROW_HEIGHT) + 'px';
+                header.textContent = r + 1;
+                header.dataset.row = r;
+                rowHeaders.appendChild(header);
+            }
+        }
+
+        function renderCells() {
+            const { start: startRow, end: endRow } = state.visibleRows;
+            const { start: startCol, end: endCol } = state.visibleCols;
+
+            gridSpacer.style.width = state.colWidths.reduce((a,b)=>a+b,0) + 'px';
+            gridSpacer.style.height = (TOTAL_ROWS * ROW_HEIGHT) + 'px';
+
+            // Clear old cells
+            gridSpacer.querySelectorAll('.cell').forEach(el => el.remove());
+
+            for (let r = startRow; r <= endRow; r++) {
+                for (let c = startCol; c <= endCol; c++) {
+                    const id = cellId(r, c);
+                    const cell = state.data[id];
+                    const cellEl = document.createElement('div');
+                    cellEl.className = 'cell';
+                    cellEl.dataset.row = r;
+                    cellEl.dataset.col = c;
+                    cellEl.style.left = c === 0 ? '0px' : state.colWidths.slice(0, c).reduce((a,b)=>a+b,0) + 'px';
+                    cellEl.style.top = (r * ROW_HEIGHT) + 'px';
+                    cellEl.style.width = state.colWidths[c] + 'px';
+                    cellEl.style.height = ROW_HEIGHT + 'px';
+                    if (cell) {
+                        cellEl.textContent = cell.displayValue || '';
+                    }
+                    // Selection highlight
+                    if (state.selection) {
+                        const s = state.selection;
+                        const minR = Math.min(s.startRow, s.endRow);
+                        const maxR = Math.max(s.startRow, s.endRow);
+                        const minC = Math.min(s.startCol, s.endCol);
+                        const maxC = Math.max(s.startCol, s.endCol);
+                        if (r >= minR && r <= maxR && c >= minC && c <= maxC) {
+                            cellEl.classList.add('selected');
+                        }
+                    }
+                    if (state.activeCell && r === state.activeCell.row && c === state.activeCell.col) {
+                        cellEl.classList.add('active');
+                    }
+                    gridSpacer.appendChild(cellEl);
+                }
+            }
+        }
+
+        function renderAll() {
+            calculateVisibleRange();
+            renderColumnHeaders();
+            renderRowHeaders();
+            renderCells();
+        }
+
+        // ================= EVENT HANDLERS =================
+        // Grid scroll
+        gridScroll.addEventListener('scroll', () => {
+            // Sync column headers and row headers
+            columnHeadersContainer.scrollLeft = gridScroll.scrollLeft;
+            rowHeadersContainer.scrollTop = gridScroll.scrollTop;
+            // Rerender virtualized cells
+            renderAll();
+        });
+
+        // Column resize
+        columnHeaders.addEventListener('mousedown', (e) => {
+            const handle = e.target.closest('.resize-handle');
+            if (!handle) return;
+            const col = parseInt(handle.dataset.col);
+            state.resizeCol = col;
+            state.resizeStartX = e.clientX;
+            state.resizeStartWidth = state.colWidths[col];
+            e.preventDefault();
+            document.addEventListener('mousemove', onColumnResizeMouseMove);
+            document.addEventListener('mouseup', onColumnResizeMouseUp);
+        });
+
+        function onColumnResizeMouseMove(e) {
+            if (state.resizeCol === null) return;
+            const diff = e.clientX - state.resizeStartX;
+            const newWidth = Math.max(30, state.resizeStartWidth + diff);
+            state.colWidths[state.resizeCol] = newWidth;
+            renderAll();
+            saveStateDebounced();
+        }
+
+        function onColumnResizeMouseUp() {
+            state.resizeCol = null;
+            document.removeEventListener('mousemove', onColumnResizeMouseMove);
+            document.removeEventListener('mouseup', onColumnResizeMouseUp);
+        }
+
+        // Cell selection & editing
+        gridSpacer.addEventListener('mousedown', (e) => {
+            const cell = e.target.closest('.cell');
+            if (!cell) return;
+            const row = parseInt(cell.dataset.row);
+            const col = parseInt(cell.dataset.col);
+            e.preventDefault();
+
+            if (e.shiftKey && state.activeCell) {
+                // extend selection
+                state.selection = {
+                    startRow: state.activeCell.row,
+                    startCol: state.activeCell.col,
+                    endRow: row,
+                    endCol: col
+                };
+            } else {
+                state.activeCell = { row, col };
+                state.selection = { startRow: row, startCol: col, endRow: row, endCol: col };
+            }
+            updateFormulaBar();
+            renderAll();
+            state.isDragging = true;
+            state.dragStart = { row, col };
+            document.addEventListener('mousemove', onGridMouseMove);
+            document.addEventListener('mouseup', onGridMouseUp);
+        });
+
+        function onGridMouseMove(e) {
+            if (!state.isDragging) return;
+            const element = document.elementFromPoint(e.clientX, e.clientY);
+            if (element && element.classList.contains('cell')) {
+                const row = parseInt(element.dataset.row);
+                const col = parseInt(element.dataset.col);
+                if (row !== undefined && col !== undefined) {
+                    state.selection = {
+                        startRow: state.dragStart.row,
+                        startCol: state.dragStart.col,
+                        endRow: row,
+                        endCol: col
+                    };
+                    state.activeCell = { row, col };
+                    updateFormulaBar();
+                    renderAll();
+                }
+            }
+        }
+
+        function onGridMouseUp() {
+            state.isDragging = false;
+            document.removeEventListener('mousemove', onGridMouseMove);
+            document.removeEventListener('mouseup', onGridMouseUp);
+        }
+
+        // Double-click to edit
+        gridSpacer.addEventListener('dblclick', (e) => {
+            const cell = e.target.closest('.cell');
+            if (!cell) return;
+            const row = parseInt(cell.dataset.row);
+            const col = parseInt(cell.dataset.col);
+            startEditing(row, col);
+        });
+
+        function startEditing(row, col) {
+            state.editing = true;
+            const id = cellId(row, col);
+            const cell = state.data[id];
+            const cellEl = document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+            if (cellEl) {
+                cellEl.classList.add('editing');
+                const input = document.createElement('input');
+                input.value = cell ? (cell.formula || cell.displayValue || '') : '';
+                input.addEventListener('blur', () => finishEditing(row, col, input.value));
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') { e.preventDefault(); finishEditing(row, col, input.value); moveActive(1,0); }
+                    if (e.key === 'Tab') { e.preventDefault(); finishEditing(row, col, input.value); moveActive(0,1); }
+                    if (e.key === 'Escape') { e.preventDefault(); cellEl.removeChild(input); state.editing = false; }
+                });
+                cellEl.innerHTML = '';
+                cellEl.appendChild(input);
+                input.focus();
+            }
+        }
+
+        function finishEditing(row, col, value) {
+            state.editing = false;
+            setCellValue(row, col, value);
+            renderAll();
+            state.activeCell = { row, col };
+            updateFormulaBar();
+        }
+
+        function moveActive(dRow, dCol) {
+            const newRow = Math.min(TOTAL_ROWS - 1, Math.max(0, state.activeCell.row + dRow));
+            const newCol = Math.min(TOTAL_COLUMNS - 1, Math.max(0, state.activeCell.col + dCol));
+            state.activeCell = { row: newRow, col: newCol };
+            state.selection = { startRow: newRow, startCol: newCol, endRow: newRow, endCol: newCol };
+            updateFormulaBar();
+            renderAll();
+            ensureCellVisible(newRow, newCol);
+        }
+
+        function ensureCellVisible(row, col) {
+            // scroll if needed
+            const cellLeft = state.colWidths.slice(0, col).reduce((a,b)=>a+b,0);
+            const cellRight = cellLeft + state.colWidths[col];
+            const cellTop = row * ROW_HEIGHT;
+            const cellBottom = cellTop + ROW_HEIGHT;
+            if (cellLeft < gridScroll.scrollLeft) gridScroll.scrollLeft = cellLeft;
+            if (cellRight > gridScroll.scrollLeft + gridScroll.clientWidth) gridScroll.scrollLeft = cellRight - gridScroll.clientWidth;
+            if (cellTop < gridScroll.scrollTop) gridScroll.scrollTop = cellTop;
+            if (cellBottom > gridScroll.scrollTop + gridScroll.clientHeight) gridScroll.scrollTop = cellBottom - gridScroll.clientHeight;
+        }
+
+        // Formula bar
+        function updateFormulaBar() {
+            if (state.activeCell) {
+                const id = cellId(state.activeCell.row, state.activeCell.col);
+                cellRef.value = id;
+                const cell = state.data[id];
+                formulaInput.value = cell ? (cell.formula || cell.displayValue || '') : '';
+            }
+        }
+
+        formulaInput.addEventListener('focus', () => {
+            state.formulaBarFocused = true;
+        });
+        formulaInput.addEventListener('blur', () => {
+            state.formulaBarFocused = false;
+            if (state.activeCell) {
+                const id = cellId(state.activeCell.row, state.activeCell.col);
+                const cell = state.data[id];
+                if ((cell?.formula || cell?.displayValue || '') !== formulaInput.value) {
+                    setCellValue(state.activeCell.row, state.activeCell.col, formulaInput.value);
+                    renderAll();
+                }
+            }
+        });
+        formulaInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (state.activeCell) {
+                    setCellValue(state.activeCell.row, state.activeCell.col, formulaInput.value);
+                    renderAll();
+                    moveActive(1,0);
+                }
+            }
+        });
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (state.editing || state.formulaBarFocused) return;
+            if (e.key.startsWith('Arrow')) {
+                e.preventDefault();
+                const dRow = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0;
+                const dCol = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+                if (e.shiftKey) {
+                    if (state.selection) {
+                        state.selection.endRow += dRow;
+                        state.selection.endCol += dCol;
+                        state.activeCell.row += dRow;
+                        state.activeCell.col += dCol;
+                    }
+                } else {
+                    moveActive(dRow, dCol);
+                }
+                updateFormulaBar();
+                renderAll();
+            } else if (e.key === 'Delete' || e.key === 'Backspace') {
+                if (state.selection) {
+                    const { startRow, startCol, endRow, endCol } = state.selection;
+                    for (let r = Math.min(startRow,endRow); r <= Math.max(startRow,endRow); r++) {
+                        for (let c = Math.min(startCol,endCol); c <= Math.max(startCol,endCol); c++) {
+                            delete state.data[cellId(r,c)];
+                            // remove dependencies
+                            const id = cellId(r,c);
+                            if (state.dependents[id]) {
+                                for (const dep of state.dependents[id]) {
+                                    state.dependencies[dep]?.delete(id);
+                                }
+                                delete state.dependents[id];
+                            }
+                            delete state.dependencies[id];
+                        }
+                    }
+                    recalcDependents(state.activeCell ? cellId(state.activeCell.row, state.activeCell.col) : '');
+                    renderAll();
+                    saveStateDebounced();
+                }
+            } else if (e.ctrlKey && e.key === 'c') {
+                copySelection();
+            } else if (e.ctrlKey && e.key === 'v') {
+                pasteClipboard();
+            } else if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                moveActive(1,0);
+            } else if (e.key === 'Tab') {
+                e.preventDefault();
+                moveActive(0,1);
+            }
+        });
+
+        // Copy/Paste
+        function copySelection() {
+            if (!state.selection) return;
+            const { startRow, startCol, endRow, endCol } = state.selection;
+            const minR = Math.min(startRow, endRow);
+            const maxR = Math.max(startRow, endRow);
+            const minC = Math.min(startCol, endCol);
+            const maxC = Math.max(startCol, endCol);
+            const data = [];
+            for (let r = minR; r <= maxR; r++) {
+                const row = [];
+                for (let c = minC; c <= maxC; c++) {
+                    const id = cellId(r,c);
+                    const cell = state.data[id];
+                    row.push(cell ? (cell.formula || cell.displayValue || '') : '');
+                }
+                data.push(row);
+            }
+            state.clipboard = data;
+        }
+
+        function pasteClipboard() {
+            if (!state.clipboard || !state.activeCell) return;
+            const startRow = state.activeCell.row;
+            const startCol = state.activeCell.col;
+            for (let r = 0; r < state.clipboard.length; r++) {
+                for (let c = 0; c < state.clipboard[0].length; c++) {
+                    const row = startRow + r;
+                    const col = startCol + c;
+                    if (row < TOTAL_ROWS && col < TOTAL_COLUMNS) {
+                        setCellValue(row, col, state.clipboard[r][c]);
+                    }
+                }
+            }
+            renderAll();
+            saveStateDebounced();
+        }
+
+        // Sorting & Filtering
+        sortAscBtn.addEventListener('click', () => sortActiveColumn(true));
+        sortDescBtn.addEventListener('click', () => sortActiveColumn(false));
+
+        function sortActiveColumn(ascending) {
+            if (!state.activeCell) return;
+            const col = state.activeCell.col;
+            const rowIndices = [];
+            for (let r = 0; r < TOTAL_ROWS; r++) {
+                if (state.data[cellId(r, col)] !== undefined) rowIndices.push(r);
+            }
+            const sorted = rowIndices.sort((a,b) => {
+                const va = state.data[cellId(a, col)]?.displayValue || '';
+                const vb = state.data[cellId(b, col)]?.displayValue || '';
+                const na = isNumeric(va) ? parseFloat(va) : va.toLowerCase();
+                const nb = isNumeric(vb) ? parseFloat(vb) : vb.toLowerCase();
+                if (na < nb) return ascending ? -1 : 1;
+                if (na > nb) return ascending ? 1 : -1;
+                return 0;
+            });
+            // reorder rows data
+            const newData = {};
+            sorted.forEach((oldRow, newRow) => {
+                for (let c = 0; c < TOTAL_COLUMNS; c++) {
+                    const id = cellId(oldRow, c);
+                    if (state.data[id]) {
+                        newData[cellId(newRow, c)] = state.data[id];
+                    }
+                }
+            });
+            state.data = newData;
+            // rebuild dependency graph
+            rebuildDependencies();
+            renderAll();
+            saveStateDebounced();
+        }
+
+        function rebuildDependencies() {
+            state.dependencies = {};
+            state.dependents = {};
+            for (const id in state.data) {
+                if (state.data[id].formula) {
+                    updateDependencies(id, state.data[id].formula);
+                    recalcCell(id);
+                }
+            }
+            // recalc all formula cells
+            for (const id in state.data) {
+                if (state.data[id].formula) recalcDependents(id);
+            }
+        }
+
+        toggleFilterBtn.addEventListener('click', () => {
+            state.filterMode = !state.filterMode;
+            toggleFilterBtn.textContent = state.filterMode ? '🔍 Filter: On' : '🔍 Filter';
+            renderColumnHeaders();
+            if (!state.filterMode) {
+                // clear filters
+                state.filters = {};
+                renderAll();
+            }
+        });
+
+        // Filter dropdown handling
+        columnHeaders.addEventListener('click', (e) => {
+            const filterBtn = e.target.closest('.filter-btn');
+            if (!filterBtn) return;
+            const col = parseInt(filterBtn.dataset.col);
+            showFilterDropdown(col, filterBtn);
+        });
+
+        function showFilterDropdown(col, anchor) {
+            const existing = document.querySelector('.filter-dropdown');
+            if (existing) existing.remove();
+            const values = new Set();
+            for (let r = 0; r < TOTAL_ROWS; r++) {
+                const id = cellId(r, col);
+                if (state.data[id]) values.add(state.data[id].displayValue || '');
+            }
+            const dropdown = document.createElement('div');
+            dropdown.className = 'filter-dropdown';
+            const rect = anchor.getBoundingClientRect();
+            dropdown.style.top = (rect.bottom + 5) + 'px';
+            dropdown.style.left = rect.left + 'px';
+            values.forEach(val => {
+                const item = document.createElement('div');
+                item.className = 'filter-item';
+                item.textContent = val || '(empty)';
+                item.dataset.value = val;
+                if (state.filters[col]?.has(val)) item.classList.add('selected');
+                item.addEventListener('click', () => {
+                    if (!state.filters[col]) state.filters[col] = new Set();
+                    if (state.filters[col].has(val)) state.filters[col].delete(val);
+                    else state.filters[col].add(val);
+                    applyFilters();
+                    dropdown.remove();
+                });
+                dropdown.appendChild(item);
+            });
+            document.body.appendChild(dropdown);
+            document.addEventListener('click', function close(e) {
+                if (!dropdown.contains(e.target) && e.target !== anchor) dropdown.remove();
+            }, { once: true });
+        }
+
+        function applyFilters() {
+            // We'll just mark cells as hidden? For now, we'll re-render and filter out rows that don't match.
+            // Instead of complex row hiding, we'll mark rows as filtered out by setting display none.
+            renderAll();
+            // Additional CSS to hide non-matching cells? We'll just clear and re-render with filter check.
+            const { start: startRow, end: endRow } = state.visibleRows;
+            for (let r = startRow; r <= endRow; r++) {
+                let showRow = true;
+                for (const col in state.filters) {
+                    if (state.filters[col].size > 0) {
+                        const val = state.data[cellId(r, parseInt(col))]?.displayValue || '';
+                        if (!state.filters[col].has(val)) showRow = false;
+                    }
+                }
+                if (!showRow) {
+                    // hide cells in this row
+                    const cells = gridSpacer.querySelectorAll(`.cell[data-row="${r}"]`);
+                    cells.forEach(c => c.style.display = 'none');
+                    // also hide row header? We'll skip.
+                }
+            }
+        }
+
+        // ================= LOCAL STORAGE =================
+        function saveState() {
+            const saveData = {
+                data: state.data,
+                colWidths: state.colWidths,
+            };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(saveData));
+        }
+
+        const saveStateDebounced = debounce(saveState, 500);
+
+        function loadState() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    state.data = parsed.data || {};
+                    state.colWidths = parsed.colWidths || new Array(TOTAL_COLUMNS).fill(DEFAULT_COL_WIDTH);
+                } catch (e) {
+                    console.warn('Failed to parse saved state');
+                }
+            }
+        }
+
+        function clearAll() {
+            if (!confirm('Are you sure you want to clear all data?')) return;
+            state.data = {};
+            state.dependencies = {};
+            state.dependents = {};
+            state.filters = {};
+            renderAll();
+            saveState();
+        }
+
+        clearAllBtn.addEventListener('click', clearAll);
+
+        // ================= INIT =================
+        function init() {
+            // Theme
+            const savedTheme = localStorage.getItem('axiom_theme');
+            setTheme(savedTheme === 'dark' ? 'dark' : 'light');
+
+            // Load data
+            loadState();
+
+            // Initial render
+            renderAll();
+
+            // Ensure active cell visible
+            ensureCellVisible(state.activeCell.row, state.activeCell.col);
+
+            // Setup initial formula bar
+            updateFormulaBar();
+        }
+
+        init();
+    })();
+    </script>
+</body>
+</html>

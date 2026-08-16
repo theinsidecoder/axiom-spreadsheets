@@ -1,0 +1,35 @@
+
+---
+
+**.gitattributes**
+
+```gitattributes
+# Force GitHub to show only JavaScript as the primary language
+# by marking all non-JS files as vendored or generated.
+
+# Hide all non-JS files from language statistics
+* linguist-vendored
+
+# Keep JavaScript files detectable and counted
+*.js linguist-vendored=false
+*.js linguist-detectable=true
+
+# Explicitly mark HTML, CSS, and other files as vendored
+*.html linguist-vendored
+*.css linguist-vendored
+*.md linguist-vendored
+*.json linguist-vendored
+*.png linguist-vendored
+*.jpg linguist-vendored
+*.jpeg linguist-vendored
+*.gif linguist-vendored
+*.svg linguist-vendored
+*.ico linguist-vendored
+*.txt linguist-vendored
+*.yml linguist-vendored
+*.yaml linguist-vendored
+*.xml linguist-vendored
+*.lock linguist-vendored
+*.gitattributes linguist-vendored
+*.gitignore linguist-vendored
+LICENSE linguist-vendored
