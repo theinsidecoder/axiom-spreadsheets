@@ -144,7 +144,7 @@ This project is licensed under the **MIT License**. You are free to use, modify,
 
 **Happy calculating!**  
 If you encounter any bugs or have feature requests, feel free to contribute or open an issue.
-```
+
 
 
 
